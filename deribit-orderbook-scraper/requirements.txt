@@ -1,0 +1,5 @@
+certifi==2019.11.28
+-e git+https://github.com/deribit/deribit-api-clients.git@7ae49f6c4df5c231ed8b346925ee3539dbde46e9#egg=openapi_client&subdirectory=python
+python-dateutil==2.8.1
+six==1.14.0
+urllib3==1.25.7
