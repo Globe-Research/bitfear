@@ -96,7 +96,7 @@ if __name__ == '__main__':
             for instrument in instruments:
                 try:
                     scrape(instrument)
-                except e:
+                except Exception as e:
                     print('Unhandled exception for {}: {}'.format(instrument, e))
                     print('Skipping {}...'.format(instrument))
                     continue
