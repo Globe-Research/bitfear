@@ -23,7 +23,7 @@ api = dbitApi.MarketDataApi()
 # Get instrument selection
 try:
     instrument_result = api.public_get_instruments_get(currency, kind=kind, expired=expired)['result']
-except ApiException as e:
+except dbitApi.exceptions.ApiException as e:
     print("Exception when calling MarketDataApi->public_get_instruments_get: {}}\n".format(e))
     exit()
 
@@ -32,7 +32,7 @@ instruments = [instrument['instrument_name'] for instrument in instrument_result
 def scrape(instrument):
     try:
         orderbook_result = api.public_get_order_book_get(instrument)['result']
-    except ApiException as e:
+    except dbitApi.exceptions.ApiException as e:
         print("Exception when calling MarketDataApi->public_get_instruments_get: {}}\n".format(e))
         return
     
@@ -84,18 +84,25 @@ def scrape(instrument):
                 writer.writeheader()
 
             writer.writerow(orderbook_result)
-            print("Successfully updated {}".format(filename))
+            print('Successfully updated {}'.format(filename))
 
     except PermissionError:
         # File unwritable for some temporary reason (e.g. been opened by another process) so skip
-        print("Skipping {}: file unavailable")
+        print('Skipping {}: file unavailable')
 
 if __name__ == '__main__':
     try:
         while True:
             for instrument in instruments:
-                scrape(instrument)
+                try:
+                    scrape(instrument)
+                except e:
+                    print('Unhandled exception for {}: {}'.format(instrument, e))
+                    print('Skipping {}...'.format(instrument))
+                    continue
+            print('Updates complete. Waiting {} seconds...'.format(resolution))
             sleep(resolution)
     except KeyboardInterrupt:
         # Exit gracefully
+        print("Exiting...")
         exit()
