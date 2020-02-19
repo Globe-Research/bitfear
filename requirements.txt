@@ -1,5 +1,17 @@
 certifi==2019.11.28
+chardet==3.0.4
+idna==2.8
+lxml==4.5.0
+numpy==1.18.1
+oauthlib==3.1.0
 -e git+https://github.com/deribit/deribit-api-clients.git@7ae49f6c4df5c231ed8b346925ee3539dbde46e9#egg=openapi_client&subdirectory=python
+pandas==1.0.1
+PySocks==1.7.1
 python-dateutil==2.8.1
+pytrends==4.7.2
+pytz==2019.3
+requests==2.22.0
+requests-oauthlib==1.3.0
 six==1.14.0
+tweepy==3.8.0
 urllib3==1.25.7
