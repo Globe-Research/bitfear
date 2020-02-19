@@ -110,3 +110,9 @@ venv.bak/
 paper/*.pdf
 *synctex*
 *.toc
+
+# Data
+*.zip
+
+# VSCode
+.vscode
