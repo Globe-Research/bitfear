@@ -116,3 +116,6 @@ paper/*.pdf
 
 # VSCode
 .vscode
+
+# Secrets (keys/tokens) folder
+secrets/
