@@ -7,6 +7,8 @@ import calendar
 import math
 
 path = ("path to data that has been reformatted using my code")
+test1 = os.listdir(path)[0]
+test2 = os.listdir(path)[40000]
 
 
 columnsToDrop = ['underlying_price', 'timestamp', 'state', 'settlement_price', 'open_interest',	'min_price',
@@ -17,6 +19,7 @@ columnsToDrop = ['underlying_price', 'timestamp', 'state', 'settlement_price', '
 
 # U.S Treasury yield curve rates
 rates = {1 : 1.55, 2 : 1.57, 3 : 1.57, 6 : 1.57, 12 : 1.48}
+
 
 def expiry(d1, d2, tmrw, exp, rates):
     # check to see if weekly or standard expiration
@@ -73,7 +76,6 @@ def getSigma(df, fileName, columnsToDrop):
     dfTemp = dfTemp[dfTemp.index < F]
     K = dfTemp.index[dfTemp.shape[0] - 1]
 
-
     # selecting out of money option
     P = df[df['CP'] == 'P']
     strike_index = int(np.where((P['strike'] == K) == True)[0])
@@ -101,10 +103,10 @@ def getSigma(df, fileName, columnsToDrop):
     mid = P['mid'][:P_put].tolist() + [(P['mid'][P_put] + C['mid'][C_call])/2] + C['mid'][C_call+1:].tolist()
     df_mid = pd.merge(P, C, on='strike', how='inner')
 
-
     # step 2 formula part
     strike = df_mid['strike'].tolist()
-    sum = 0
+    sumVix = 0
+    sumVol = 0
     for i in range(len(strike)):
         if i == 0:
             delta_strike = strike[i+1] - strike[i]
@@ -112,25 +114,54 @@ def getSigma(df, fileName, columnsToDrop):
             delta_strike = strike[i] - strike[i-1]
         else:
             delta_strike = (strike[i-1] + strike[i+1])/2
-        sum += (delta_strike/(strike[i]**2)) * eRT * mid[i]
+        sumVix += (delta_strike/(strike[i]**2)) * eRT * mid[i]
+        sumVol += (delta_strike) * eRT * mid[i]
 
-    sigma = (1 / T) * (2 * sum - ((F/K) - 1)**2)
+    sigmaVix = (2 * sumVix - ((F/K) - 1)**2) / T
+    sigmaVol = (2 * sumVol - ((F/K) - 1)**2) / (T * (F**2))
 
-    return N, sigma
+    return N, sigmaVix, sigmaVol
+
 
 def calculateVix(N1, sum1, N2, sum2):
-    # calculating vix
-    T1 = N1/565400
-    T2 = N2/565400
-    intermediate = ((T1 * sum1 * ((N2 - 43200)/(N2 - N1))) + (T2 * sum2 * ((43200 - N1)/(N2 - N1)))) * (565400/43200)
-    return 100 * math.sqrt(intermediate)
+    try:
+        intermediate = ((N1 * sum1 * ((N2 - 43200)/(N2 - N1))) + (N2 * sum2 * ((43200 - N1)/(N2 - N1)))) * (1/43200)
+        return 100 * math.sqrt(intermediate)
+    except ZeroDivisionError:
+        return 0
 
 
-test1 = os.listdir(path)[10000]
+def calculateRV(filename, path):
+    index = re.split("\_|\.", filename)
+    timeFromStart = int(index[1])
+    difference = 0
+    priceList = []
+    # using 15 minute intervals on a span of 28 days
+    if timeFromStart < 10080:
+        return 1
+    else:
+        # the price is taken as the average price of all options per time frame
+        # taking difference in log prices and squaring
+        for i in range(timeFromStart-10080, timeFromStart):
+            df1 = math.log(pd.Series.mean(pd.read_csv(path + "//" + index[0] + "_" + str(i) + ".csv")["underlying_price"]))
+            priceList += [(df1 - difference) ** 2]
+            difference = df1
+    priceList.pop(0)
+    # I get really low values
+    return 365 * sum(priceList)/28
+
+
+
+
 df1 = pd.read_csv(path + "//" + test1).replace(0, np.nan)
-N1, sum1 = getSigma(df1, test1,columnsToDrop)
-test2 = os.listdir(path)[15000]
+N1, sumVix1, sumVol1 = getSigma(df1, test1,columnsToDrop)
 df2 = pd.read_csv(path + "//" + test2).replace(0, np.nan)
-N2, sum2 = getSigma(df2, test2,columnsToDrop)
-y = calculateVix(N1, sum1, N2, sum2)
-print("The vix calculation is " + str(y))
+N2, sumVix2, sumVol2 = getSigma(df2, test2,columnsToDrop)
+GVXBT = calculateVix(N1, sumVix1, N2, sumVix2)
+AVXBT = calculateVix(N1, sumVol1, N2, sumVol2)
+RV = calculateRV(test2, path)
+
+GVRP = RV - (GVXBT ** 2)
+AVRP = (RV - (AVXBT ** 2)) * math.sqrt(abs(RV - (GVXBT ** 2)))
+AVRP = AVRP / abs(AVRP)
+print(GVRP, AVRP)
