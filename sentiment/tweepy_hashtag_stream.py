@@ -179,11 +179,16 @@ except Exception as e:
 if __name__ == '__main__':
     logger.info("===================================================")
     logger.info('BitFEAR Tweet Streaming for Sentiment Analysis')
-    try:
-        logger.info('Running:')
-        stream.filter(languages=focus_languages, track=focus_hashtags)
-    except KeyboardInterrupt:
-        logger.info('Stopping...')
-    finally:
-        stream.disconnect()
-        logger.info('Stopped.')
+
+    while True:
+        try:
+            logger.info('Running:')
+            stream.filter(languages=focus_languages, track=focus_hashtags)
+        except KeyboardInterrupt:
+            logger.info('Stopping...')
+            stream.disconnect()
+            logger.info('Stopped.')
+            break
+        except Exception as e:
+            logger.error('Unexpected error!', exc_info=True)
+            continue
