@@ -17,7 +17,7 @@ kind = 'option'
 expired = 'false'
 
 # Output destinations
-order_data_folder = '~/cloud-mounts/deribit_scraped_data'
+order_data_folder = os.path.join(os.path.expanduser('~'), 'cloud-mounts', 'deribit_orderbook_data')
 output_log_path = 'deribit_scraper.log'
 
 #### ---------- ####
