@@ -96,10 +96,11 @@ if __name__ == '__main__':
     logger.info('BitFEAR Deribit Orderbook Scraper')
     logger.info('Params: resolution={} currency={} kind={} expired={}'.format(resolution, currency, kind, expired))
 
-    instruments = get_instruments(currency, kind, expired)
-    logger.info('Got {} instruments'.format(len(instruments)))
+    instruments = set()
 
     while True:
+        instruments.update(get_instruments(currency, kind, expired))
+        logger.info('Tracking {} instruments'.format(len(instruments)))
         for instrument in instruments:
             try:
                 expired = scrape_orderbook(instrument)
