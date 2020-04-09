@@ -103,8 +103,8 @@ if __name__ == '__main__':
         logger.info('Tracking {} instruments'.format(len(instruments)))
         for instrument in instruments:
             try:
-                expired = scrape_orderbook(instrument)
-                if expired:
+                is_expired = scrape_orderbook(instrument)
+                if is_expired:
                     instruments.remove(instrument)
             except KeyboardInterrupt:
                 logger.info("Exiting...")
