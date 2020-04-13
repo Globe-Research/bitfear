@@ -101,7 +101,7 @@ if __name__ == '__main__':
     while True:
         instruments.update(get_instruments(currency, kind, expired))
         logger.info('Tracking {} instruments'.format(len(instruments)))
-        for instrument in instruments:
+        for instrument in instruments.copy():
             try:
                 is_expired = scrape_orderbook(instrument)
                 if is_expired:
