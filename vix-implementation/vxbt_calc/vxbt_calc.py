@@ -214,7 +214,7 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     
     return VXBT, GVXBT, AVXBT
 
-def get_indices(live=True, time=None, near_next_cp_data=None):
+def get_indices(maturity=7, rate=0, live=True, time=None, dfs=None):
     if live:
         now = datetime.now()
         near_expiry, next_expiry, near_datetime, next_datetime = get_near_next_terms(now)
@@ -223,8 +223,12 @@ def get_indices(live=True, time=None, near_next_cp_data=None):
 
         near_calls_df, near_puts_df, next_calls_df, next_puts_df = get_bids_asks(near_instruments, next_instruments)
         
-        VXBT, GVXBT, AVXBT = calculate_indices(now, near_datetime, next_datetime, 7, 0, near_calls_df, near_puts_df, next_calls_df, next_puts_df)
+        VXBT, GVXBT, AVXBT = calculate_indices(now, near_datetime, next_datetime, maturity, rate, near_calls_df, near_puts_df, next_calls_df, next_puts_df)
 
+    else:
+        near_expiry, next_expiry, near_datetime, next_datetime = get_near_next_terms(time)
+        VXBT, GVXBT, AVXBT = calculate_indices(time, near_datetime, next_datetime, maturity, rate, dfs[0], dfs[1], dfs[2], dfs[3])
+    
     return VXBT, GVXBT, AVXBT
 
 
