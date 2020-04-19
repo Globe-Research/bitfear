@@ -10,7 +10,10 @@ from datetime import datetime
 api = dbitApi.MarketDataApi()
 
 def format_datetime_to_expiry(date):
-    return datetime.strftime(date, '%#d%b%y').upper()
+    if os.name == 'nt':
+        return datetime.strftime(date, '%#d%b%y').upper()
+    else:
+        return datetime.strftime(date, '%-d%b%y').upper()
 
 def get_near_next_terms(now):
     c = calendar.Calendar(firstweekday=calendar.MONDAY)
