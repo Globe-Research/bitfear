@@ -179,7 +179,7 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
         elif i == len(near_calc_strikes_df) - 1:
             deltaKi = row.name - near_calc_strikes_df.iloc[i-1].name
         else:
-            deltaKi = (near_calc_strikes_df.iloc[i+1].name + near_calc_strikes_df.iloc[i-1].name) / 2
+            deltaKi = (near_calc_strikes_df.iloc[i+1].name - near_calc_strikes_df.iloc[i-1].name) / 2
 
         near_sum += deltaKi/(row.name ** 2) * np.e**(R*t1) * row.price
         
@@ -191,14 +191,12 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
         elif i == len(next_calc_strikes_df) - 1:
             deltaKi = row.name - next_calc_strikes_df.iloc[i-1].name
         else:
-            deltaKi = (next_calc_strikes_df.iloc[i+1].name + next_calc_strikes_df.iloc[i-1].name) / 2
+            deltaKi = (next_calc_strikes_df.iloc[i+1].name - next_calc_strikes_df.iloc[i-1].name) / 2
         
         next_sum += deltaKi/(row.name ** 2) * np.e**(R*t2) * row.price
         
     sigma1 = ((2/t1) * near_sum) - (1/t1)*((f1/k0_1 - 1)**2)
     sigma2 = ((2/t2) * next_sum) - (1/t2)*((f2/k0_2 - 1)**2)
-
-    #print(near_calc_strikes_df)
 
     VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
 
