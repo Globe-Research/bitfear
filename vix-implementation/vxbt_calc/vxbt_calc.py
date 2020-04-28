@@ -203,7 +203,7 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
 
     #print(near_calc_strikes_df)
 
-    VXBT = 100 * np.sqrt(((t1*sigma1**2)*((n2-n)/(n2-n1)) + (t2*sigma2**2)*((n-n1)/(n2-n1)))*(nY/n))
+    VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
 
     omega = ((n2-nY)/(n2-n1))*n
     sigma1_a = sigma1 * (f1**-2)
