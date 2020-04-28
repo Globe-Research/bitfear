@@ -121,9 +121,6 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     min_next_strike = next_prices['abs_diff'].idxmin()
     min_next_diff = next_prices.loc[min_next_strike].abs_diff
 
-    const_mature_days = 7
-    R = 0
-
     n1 = (near_datetime - time).total_seconds() / 60
     n2 = (next_datetime - time).total_seconds() / 60
     nY = 525600
@@ -139,10 +136,10 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     f2 = min_next_strike + np.e**(R*t2) * min_next_diff
     k0_2 = max([strike for strike in next_prices.index if strike <= min_next_strike])
 
-    near_otm_puts_df = near_puts_df.loc[:k0_1][:-1]
-    near_otm_calls_df = near_calls_df.loc[k0_1:][1:]
-    next_otm_puts_df = next_puts_df.loc[:k0_2][:-1]
-    next_otm_calls_df = next_calls_df.loc[k0_2:][1:]
+    near_otm_puts_df = near_puts_df.loc[:k0_1].iloc[:-1]
+    near_otm_calls_df = near_calls_df.loc[k0_1:].iloc[1:]
+    next_otm_puts_df = next_puts_df.loc[:k0_2].iloc[:-1]
+    next_otm_calls_df = next_calls_df.loc[k0_2:].iloc[1:]
 
     near_otm_puts_df = near_otm_puts_df.sort_index(ascending=False)
     near_otm_puts_df = near_otm_puts_df.assign(zero_bid=lambda df: (df['best_bid'] == 0).astype(int))
