@@ -111,7 +111,15 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     near_prices['abs_diff'] = abs(near_prices['call_price'] - near_prices['put_price'])
 
     min_near_strike = near_prices['abs_diff'].idxmin()
-    min_near_diff = near_prices.loc[min_near_strike].abs_diff
+    try:
+        min_near_diff = near_prices.loc[min_near_strike].abs_diff
+    except TypeError:
+        try:
+            min_near_strike = (near_prices['call_price'].dropna().index[-1] + near_prices['put_price'].dropna().index[0]) / 2
+            #min_near_diff = near_prices.loc[min_near_strike].abs_diff
+            min_near_diff = 0
+        except IndexError:
+            return (np.nan, np.nan, np.nan)
 
     next_prices = pd.DataFrame(index=next_calls_df.index)
     next_prices['call_price'] = (next_calls_df['best_bid'] + next_calls_df['best_ask']) / 2
@@ -119,7 +127,15 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     next_prices['abs_diff'] = abs(next_prices['call_price'] - next_prices['put_price'])
 
     min_next_strike = next_prices['abs_diff'].idxmin()
-    min_next_diff = next_prices.loc[min_next_strike].abs_diff
+    try:
+        min_next_diff = next_prices.loc[min_next_strike].abs_diff
+    except TypeError:
+        try:
+            min_next_strike = (next_prices['call_price'].dropna().index[-1] + next_prices['put_price'].dropna().index[0]) / 2
+            #min_next_diff = next_prices.loc[min_next_strike].abs_diff
+            min_next_diff = 0
+        except IndexError:
+            return (np.nan, np.nan, np.nan)
 
     n1 = (near_datetime - time).total_seconds() / 60
     n2 = (next_datetime - time).total_seconds() / 60
@@ -175,11 +191,20 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     for i in range(len(near_calc_strikes_df)):
         row = near_calc_strikes_df.iloc[i]
         if i == 0:
-            deltaKi = near_calc_strikes_df.iloc[i+1].name - row.name
+            try:
+                deltaKi = near_calc_strikes_df.iloc[i+1].name - row.name
+            except IndexError:
+                deltaKi = near_prices.iloc[near_prices.index.get_loc(row.name) + 1].name - row.name
         elif i == len(near_calc_strikes_df) - 1:
-            deltaKi = row.name - near_calc_strikes_df.iloc[i-1].name
+            try:
+                deltaKi = row.name - near_calc_strikes_df.iloc[i-1].name
+            except IndexError:
+                deltaKi = near_prices.iloc[near_prices.index.get_loc(row.name) - 1].name - row.name
         else:
-            deltaKi = (near_calc_strikes_df.iloc[i+1].name - near_calc_strikes_df.iloc[i-1].name) / 2
+            try:
+                deltaKi = (near_calc_strikes_df.iloc[i+1].name - near_calc_strikes_df.iloc[i-1].name) / 2
+            except IndexError:
+                deltaKi = (near_prices.iloc[near_prices.index.get_loc(row.name) + 1].name - near_prices.iloc[near_prices.index.get_loc(row.name) - 1].name) / 2
 
         near_sum += deltaKi/(row.name ** 2) * np.e**(R*t1) * row.price
         
@@ -187,26 +212,40 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     for i in range(len(next_calc_strikes_df)):
         row = next_calc_strikes_df.iloc[i]
         if i == 0:
-            deltaKi = next_calc_strikes_df.iloc[i+1].name - row.name
+            try:
+                deltaKi = next_calc_strikes_df.iloc[i+1].name - row.name
+            except IndexError:
+                deltaKi = next_prices.iloc[next_prices.index.get_loc(row.name) + 1].name - row.name
         elif i == len(next_calc_strikes_df) - 1:
-            deltaKi = row.name - next_calc_strikes_df.iloc[i-1].name
+            try:
+                deltaKi = row.name - next_calc_strikes_df.iloc[i-1].name
+            except IndexError:
+                deltaKi = next_prices.iloc[next_prices.index.get_loc(row.name) - 1].name - row.name
         else:
-            deltaKi = (next_calc_strikes_df.iloc[i+1].name - next_calc_strikes_df.iloc[i-1].name) / 2
+            try:
+                deltaKi = (next_calc_strikes_df.iloc[i+1].name - next_calc_strikes_df.iloc[i-1].name) / 2
+            except IndexError:
+                deltaKi = (next_prices.iloc[next_prices.index.get_loc(row.name) + 1].name - next_prices.iloc[next_prices.index.get_loc(row.name) - 1].name) / 2
         
         next_sum += deltaKi/(row.name ** 2) * np.e**(R*t2) * row.price
         
-    sigma1 = ((2/t1) * near_sum) - (1/t1)*((f1/k0_1 - 1)**2)
-    sigma2 = ((2/t2) * next_sum) - (1/t2)*((f2/k0_2 - 1)**2)
-
-    VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
-
-    omega = ((n2-nY)/(n2-n1))*n
-    sigma1_a = sigma1 * (f1**-2)
-    sigma2_a = sigma2 * (f2**-2)
-
-    GVXBT = np.sqrt(omega*t1*sigma1 + (1-omega)*t2*sigma2)
-    AVXBT = np.sqrt(omega*t1*sigma1_a + (1-omega)*t2*sigma2_a)
     
+    try:
+        sigma1 = ((2/t1) * near_sum) - (1/t1)*((f1/k0_1 - 1)**2)
+        sigma2 = ((2/t2) * next_sum) - (1/t2)*((f2/k0_2 - 1)**2)
+
+        VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
+
+        omega = ((n2-nY)/(n2-n1))*n
+        sigma1_a = sigma1 * (f1**-2)
+        sigma2_a = sigma2 * (f2**-2)
+
+        GVXBT = np.sqrt(omega*t1*sigma1 + (1-omega)*t2*sigma2)
+        AVXBT = np.sqrt(omega*t1*sigma1_a + (1-omega)*t2*sigma2_a)
+
+    except ZeroDivisionError:
+        return (np.nan, np.nan, np.nan)
+        
     return VXBT, GVXBT, AVXBT
 
 def get_indices(maturity=7, rate=0, live=True, time=None, dfs=None):
