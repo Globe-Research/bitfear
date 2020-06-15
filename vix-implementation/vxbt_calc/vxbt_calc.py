@@ -103,7 +103,18 @@ def get_bids_asks(near_list, next_list):
 
     return near_calls_df, near_puts_df, next_calls_df, next_puts_df
 
-def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, near_calls_df, near_puts_df, next_calls_df, next_puts_df):
+def filter_otm_options(input_df):
+    input_df = input_df.assign(zero_bid=lambda df: (
+        df['best_bid'].isna()).astype(int))
+    input_df_to_include = []
+    for i in range(input_df.shape[0] - 1):
+        if input_df.iloc[i:i+2, 2].sum() == 2:
+            break
+        elif input_df.iloc[i, 2] != 1:
+            input_df_to_include.append(i)
+    return input_df.iloc[input_df_to_include, :2]
+
+def calculate_indices(time, near_datetime, next_datetime, const_mature_days, near_rate, next_rate, near_calls_df, near_puts_df, next_calls_df, next_puts_df):
     # Compute strikes with min call/put price difference
     near_prices = pd.DataFrame(index=near_calls_df.index)
     near_prices['call_price'] = (near_calls_df['best_bid'] + near_calls_df['best_ask']) / 2
@@ -146,17 +157,26 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     t2 = n2/nY
 
     # Compute forward prices and at-the-money strikes
-    f1 = min_near_strike + np.e**(R*t1) * min_near_diff
+    f1 = min_near_strike + np.e**(near_rate*t1) * min_near_diff
     k0_1 = max([strike for strike in near_prices.index if strike <= min_near_strike])
 
-    f2 = min_next_strike + np.e**(R*t2) * min_next_diff
+    f2 = min_next_strike + np.e**(next_rate*t2) * min_next_diff
     k0_2 = max([strike for strike in next_prices.index if strike <= min_next_strike])
-
+    '''
     near_otm_puts_df = near_puts_df.loc[:k0_1].iloc[:-1]
     near_otm_calls_df = near_calls_df.loc[k0_1:].iloc[1:]
     next_otm_puts_df = next_puts_df.loc[:k0_2].iloc[:-1]
     next_otm_calls_df = next_calls_df.loc[k0_2:].iloc[1:]
-
+    '''
+    near_otm_puts_df = filter_otm_options(
+        near_puts_df.loc[:k0_1].iloc[:-1].sort_index(ascending=False))
+    near_otm_calls_df = filter_otm_options(
+        near_calls_df.loc[k0_1:].iloc[1:])
+    next_otm_puts_df = filter_otm_options(
+        next_puts_df.loc[:k0_2].iloc[:-1].sort_index(ascending=False))
+    next_otm_calls_df = filter_otm_options(
+        next_calls_df.loc[k0_2:].iloc[1:])
+    
     near_otm_puts_df = near_otm_puts_df.sort_index(ascending=False)
     near_otm_puts_df = near_otm_puts_df.assign(zero_bid=lambda df: (df['best_bid'] == 0).astype(int))
     near_otm_puts_df['zero_bid_cumsum'] = near_otm_puts_df['zero_bid'].cumsum()
@@ -187,7 +207,8 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
     next_calc_strikes_df.at[k0_2] = (next_prices.loc[k0_2].call_price + next_prices.loc[k0_2].put_price) / 2
     next_calc_strikes_df = next_calc_strikes_df.dropna()
 
-    near_sum = 0
+    near_calc_strikes_df['delta_k'] = 0
+    near_calc_strikes_df['contribution'] = 0
     for i in range(len(near_calc_strikes_df)):
         row = near_calc_strikes_df.iloc[i]
         if i == 0:
@@ -206,9 +227,14 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
             except IndexError:
                 deltaKi = (near_prices.iloc[near_prices.index.get_loc(row.name) + 1].name - near_prices.iloc[near_prices.index.get_loc(row.name) - 1].name) / 2
 
-        near_sum += deltaKi/(row.name ** 2) * np.e**(R*t1) * row.price
+        #near_sum += deltaKi/(row.name ** 2) * np.e**(R*t1) * row.price
+        near_calc_strikes_df.iloc[i, 1] = deltaKi
+        near_calc_strikes_df.iloc[i, 2] = deltaKi/(row.name ** 2) * \
+            np.e**(near_rate*t1) * row.price
+
         
-    next_sum = 0
+    next_calc_strikes_df['delta_k'] = 0
+    next_calc_strikes_df['contribution'] = 0
     for i in range(len(next_calc_strikes_df)):
         row = next_calc_strikes_df.iloc[i]
         if i == 0:
@@ -227,12 +253,20 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, R, 
             except IndexError:
                 deltaKi = (next_prices.iloc[next_prices.index.get_loc(row.name) + 1].name - next_prices.iloc[next_prices.index.get_loc(row.name) - 1].name) / 2
         
-        next_sum += deltaKi/(row.name ** 2) * np.e**(R*t2) * row.price
+        #next_sum += deltaKi/(row.name ** 2) * np.e**(R*t2) * row.price
+        next_calc_strikes_df.iloc[i, 1] = deltaKi
+        next_calc_strikes_df.iloc[i, 2] = deltaKi/(row.name ** 2) * \
+            np.e**(next_rate*t2) * row.price
         
     
     try:
-        sigma1 = ((2/t1) * near_sum) - (1/t1)*((f1/k0_1 - 1)**2)
-        sigma2 = ((2/t2) * next_sum) - (1/t2)*((f2/k0_2 - 1)**2)
+        #sigma1 = ((2/t1) * near_sum) - (1/t1)*((f1/k0_1 - 1)**2)
+        #sigma2 = ((2/t2) * next_sum) - (1/t2)*((f2/k0_2 - 1)**2)
+
+        sigma1 = (
+            (2/t1) * near_calc_strikes_df['contribution'].sum()) - (1/t1)*((f1/k0_1 - 1)**2)
+        sigma2 = (
+            (2/t2) * next_calc_strikes_df['contribution'].sum()) - (1/t2)*((f2/k0_2 - 1)**2)
 
         VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
 
@@ -257,11 +291,11 @@ def get_indices(maturity=7, rate=0, live=True, time=None, dfs=None):
 
         near_calls_df, near_puts_df, next_calls_df, next_puts_df = get_bids_asks(near_instruments, next_instruments)
         
-        VXBT, GVXBT, AVXBT = calculate_indices(now, near_datetime, next_datetime, maturity, rate, near_calls_df, near_puts_df, next_calls_df, next_puts_df)
+        VXBT, GVXBT, AVXBT = calculate_indices(time=now, near_datetime=near_datetime, next_datetime=next_datetime, const_mature_days=maturity, near_rate=rate, next_rate=rate, near_calls_df=near_calls_df, near_puts_df=near_puts_df, next_calls_df=next_calls_df, next_puts_df=next_puts_df)
 
     else:
         near_expiry, next_expiry, near_datetime, next_datetime = get_near_next_terms(time)
-        VXBT, GVXBT, AVXBT = calculate_indices(time, near_datetime, next_datetime, maturity, rate, dfs[0], dfs[1], dfs[2], dfs[3])
+        VXBT, GVXBT, AVXBT = calculate_indices(time=time, near_datetime=near_datetime, next_datetime=next_datetime, const_mature_days=maturity, near_rate=rate, next_rate=rate, near_calls_df=dfs[0], near_puts_df=dfs[1], next_calls_df=dfs[2], next_puts_df=dfs[3])
     
     return VXBT, GVXBT, AVXBT
 
