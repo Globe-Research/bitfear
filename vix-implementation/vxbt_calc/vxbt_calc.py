@@ -158,10 +158,10 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, nea
 
     # Compute forward prices and at-the-money strikes
     f1 = min_near_strike + np.e**(near_rate*t1) * min_near_diff
-    k0_1 = max([strike for strike in near_prices.index if strike <= min_near_strike])
+    k0_1 = max([strike for strike in near_prices.index if strike <= f1])
 
     f2 = min_next_strike + np.e**(next_rate*t2) * min_next_diff
-    k0_2 = max([strike for strike in next_prices.index if strike <= min_next_strike])
+    k0_2 = max([strike for strike in next_prices.index if strike <= f2])
     '''
     near_otm_puts_df = near_puts_df.loc[:k0_1].iloc[:-1]
     near_otm_calls_df = near_calls_df.loc[k0_1:].iloc[1:]
@@ -209,6 +209,7 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, nea
 
     near_calc_strikes_df['delta_k'] = 0
     near_calc_strikes_df['contribution'] = 0
+    near_calc_strikes_df['contribution_avxbt'] = 0
     for i in range(len(near_calc_strikes_df)):
         row = near_calc_strikes_df.iloc[i]
         if i == 0:
@@ -231,10 +232,13 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, nea
         near_calc_strikes_df.iloc[i, 1] = deltaKi
         near_calc_strikes_df.iloc[i, 2] = deltaKi/(row.name ** 2) * \
             np.e**(near_rate*t1) * row.price
+        near_calc_strikes_df.iloc[i, 3] = deltaKi * \
+            np.e**(near_rate*t1) * row.price
 
         
     next_calc_strikes_df['delta_k'] = 0
     next_calc_strikes_df['contribution'] = 0
+    next_calc_strikes_df['contribution_avxbt'] = 0
     for i in range(len(next_calc_strikes_df)):
         row = next_calc_strikes_df.iloc[i]
         if i == 0:
@@ -257,6 +261,8 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, nea
         next_calc_strikes_df.iloc[i, 1] = deltaKi
         next_calc_strikes_df.iloc[i, 2] = deltaKi/(row.name ** 2) * \
             np.e**(next_rate*t2) * row.price
+        next_calc_strikes_df.iloc[i, 3] = deltaKi * \
+            np.e**(next_rate*t2) * row.price
         
     
     try:
@@ -271,8 +277,8 @@ def calculate_indices(time, near_datetime, next_datetime, const_mature_days, nea
         VXBT = 100 * np.sqrt(((t1*sigma1)*((n2-n)/(n2-n1)) + (t2*sigma2)*((n-n1)/(n2-n1)))*(nY/n))
 
         omega = ((n2-nY)/(n2-n1))*n
-        sigma1_a = sigma1 * (f1**-2)
-        sigma2_a = sigma2 * (f2**-2)
+        sigma1_a = (2/t1) * (f1**-2) * (near_calc_strikes_df['contribution_avxbt'].sum() - (1/t1)*((f1/k0_1 - 1)**2))
+        sigma2_a = (2/t2) * (f2**-2) * (next_calc_strikes_df['contribution_avxbt'].sum() - (1/t2)*((f2/k0_2 - 1)**2))
 
         GVXBT = np.sqrt(omega*t1*sigma1 + (1-omega)*t2*sigma2)
         AVXBT = np.sqrt(omega*t1*sigma1_a + (1-omega)*t2*sigma2_a)
