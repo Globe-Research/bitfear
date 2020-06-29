@@ -4,11 +4,12 @@ import os
 import numpy as np
 import pandas as pd
 import datetime
+import matplotlib.pyplot as plt
 
 from vxbt_calc import vxbt_calc
 #from datetime import datetime
 
-capi_data_path = 'M:\\coinapi-deribit-btc-options-1905-2005\\coinapi\\'
+capi_data_path = '/path/to/coinapi_csvs'
 
 start_c = pd.to_datetime('2019-05-01 00:00:00')
 end_c = pd.to_datetime('2020-05-01 00:00:00')
@@ -49,7 +50,7 @@ def read_orderbook_data(csv_paths, expiry, coinapi=False, data_dict=dict()):
                 df.loc[instrument_start_end[exp]['start']] = [np.nan, np.nan]
                 df.loc[instrument_start_end[exp]['end']] = [np.nan, np.nan]
                 df = df.sort_index()
-                df_resampled = df.resample('5min').last().fillna(method='ffill').fillna(method='bfill').dropna()
+                df_resampled = df.resample('5min').ffill().fillna(method='bfill')#s.dropna()
             else:
                 df_resampled = df.resample('5min').last().dropna()
         except Exception as e:
@@ -64,14 +65,30 @@ def build_dataframes(time, near_expiry, next_expiry, data_dict):
     near_puts = dict()
     next_calls = dict()
     next_puts = dict()
+
+    index_price = index_df[' Price'].loc[time]
     
     for strike in data_dict[near_expiry]:
-        near_calls[strike] = data_dict[near_expiry][strike]['C'].loc[time].astype(float)
-        near_puts[strike] = data_dict[near_expiry][strike]['P'].loc[time].astype(float)
+        try:
+            near_calls[strike] = data_dict[near_expiry][strike]['C'].loc[time].astype(float) * index_price
+        except KeyError:
+            pass
+
+        try:
+            near_puts[strike] = data_dict[near_expiry][strike]['P'].loc[time].astype(float) * index_price
+        except KeyError:
+            pass
     
     for strike in data_dict[next_expiry]:
-        next_calls[strike] = data_dict[next_expiry][strike]['C'].loc[time].astype(float)
-        next_puts[strike] = data_dict[next_expiry][strike]['P'].loc[time].astype(float)
+        try:
+            next_calls[strike] = data_dict[next_expiry][strike]['C'].loc[time].astype(float) * index_price
+        except KeyError:
+            pass
+
+        try:
+            next_puts[strike] = data_dict[next_expiry][strike]['P'].loc[time].astype(float) * index_price
+        except KeyError:
+            pass
         
     near_calls_df = pd.DataFrame.from_dict(near_calls, orient='index').sort_index().replace(0, np.nan).rename(columns={'best_bid_price': 'best_bid', 'best_ask_price': 'best_ask'})
     near_puts_df = pd.DataFrame.from_dict(near_puts, orient='index').sort_index().replace(0, np.nan).rename(columns={'best_bid_price': 'best_bid', 'best_ask_price': 'best_ask'})
@@ -80,16 +97,21 @@ def build_dataframes(time, near_expiry, next_expiry, data_dict):
     
     return near_calls_df, near_puts_df, next_calls_df, next_puts_df
 
-now_c = start_c
+index_df = pd.read_csv('/path/to/deribit_btc_usd_index_19-05-01_20-05-31_5min.csv')
+index_df['Date and Time'] = pd.to_datetime(index_df['Date and Time'])
+index_df = index_df.set_index('Date and Time')
 
-while now_c <= end_c:
-    for expiry in vxbt_calc.get_near_next_terms(now_c)[:2]:
+now = pd.to_datetime('2019-05-01 00:00:00')
+end = pd.to_datetime('2020-05-01 00:00:00')
+
+while now <= end:
+    for expiry in vxbt_calc.get_near_next_terms(now)[:2]:
         if expiry in instrument_start_end:
-            instrument_start_end[expiry]['end'] = now_c + datetime.timedelta(minutes=15)
+            instrument_start_end[expiry]['end'] = now + datetime.timedelta(minutes=15)
         else:
-            instrument_start_end[expiry] = {'start': now_c - datetime.timedelta(hours=1, minutes=15), 'end': ''}
+            instrument_start_end[expiry] = {'start': now - datetime.timedelta(hours=1, minutes=15), 'end': ''}
             
-    now_c += datetime.timedelta(hours=1)
+    now += datetime.timedelta(hours=1)
 
 now_c = start_c
 
@@ -105,12 +127,13 @@ while now_c <= end_c:
         continue
 
     try:
+        print(f'At {str(now_c)}', end='\r')
         dfs = build_dataframes(now_c, near_expiry, next_expiry, capi_orderbook_data)
         VXBT, GVXBT, AVXBT = vxbt_calc.get_indices(live=False, time=now_c, dfs=dfs)
             
         #capi_indices_df = capi_indices_df.append({'timestamp': now_c, 'vxbt': VXBT, 'gvxbt': GVXBT, 'avxbt': AVXBT}, ignore_index=True)
-        results[now_c] = [VXBT, GVXBT, AVXBT]
-    except KeyError as e:
+        results[str(now_c)] = [VXBT, GVXBT, AVXBT]
+    except IndexError as e:
         print(f'WARNING: Insufficient data at {now_c}, {repr(e)}')
     '''except Exception as e:
         print(f'WARNING: Unhandled error at {now_c}')
@@ -119,5 +142,9 @@ while now_c <= end_c:
     
     now_c += datetime.timedelta(minutes=5)
 
-with open('capi_vxbt.json', 'w') as f:
+with open('/path/to/output.json', 'w') as f:
     f.write(json.dumps(results))
+
+df = pd.DataFrame.from_dict(results, orient='index')
+df.plot()
+plt.show()
