@@ -1,6 +1,8 @@
 # bitfear
 Fear and volatility in crypto markets 
 
+## Preprint 
+Read the latest preprint on SSRN: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3721304 
 
 ## Producing the paper
 
