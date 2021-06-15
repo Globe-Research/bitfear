@@ -49,5 +49,5 @@ tzlocal==2.0.0
 uritemplate==3.0.1
 urllib3==1.25.7
 vaderSentiment==3.2.1
-websockets==8.1
+websockets==9.1
 wrapt==1.11.2
