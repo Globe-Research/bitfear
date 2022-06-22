@@ -26,7 +26,7 @@ lxml==4.6.3
 matplotlib==3.1.3
 mccabe==0.6.1
 msgpack==1.0.0
-numpy==1.18.1
+numpy==1.22.0
 oauthlib==3.1.0
 -e git+https://github.com/deribit/deribit-api-clients.git@7ae49f6c4df5c231ed8b346925ee3539dbde46e9#egg=openapi_client&subdirectory=..\..\..\..\..\faizaa~1\envs\bitfear\src\openapi-client\python
 pandas==1.0.1
